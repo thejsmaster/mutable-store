@@ -1,7 +1,7 @@
 "use strict";
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.createMutableStore = void 0;
 exports.getAllProps = getAllProps;
+exports.default = createMutableStore;
 function getAllProps(instance) {
     var _a, _b;
     const props = Object.keys(instance);
@@ -13,9 +13,21 @@ function getAllProps(instance) {
     const unique = [...(((_b = (_a = new Set(props)) === null || _a === void 0 ? void 0 : _a.values) === null || _b === void 0 ? void 0 : _b.call(_a)) || [])].filter((item) => item !== "constructor");
     return unique;
 }
-const createMutableStore = (mutableState) => {
+function createMutableStore(mutableState) {
     const props = getAllProps(mutableState);
     const subscriptions = new Set();
+    const reset = (newMutableState) => {
+        const props = getAllProps(newMutableState);
+        props.forEach((prop) => {
+            //@ts-ignore
+            if (typeof newMutableState[prop] !== "function") {
+                //@ts-ignore
+                mutableState[prop] = newMutableState[prop];
+            }
+        });
+        // Call subscribers once with "reset" and the new state object
+        subscriptions.forEach((fn) => fn({ setterName: "reset", args: [newMutableState] }));
+    };
     const subscribe = (fn) => {
         subscriptions.add(fn);
         return () => {
@@ -36,6 +48,7 @@ const createMutableStore = (mutableState) => {
     });
     //@ts-ignore
     mutableState.subscribe = subscribe;
+    //@ts-ignore
+    mutableState.reset = reset;
     return mutableState;
-};
-exports.createMutableStore = createMutableStore;
+}

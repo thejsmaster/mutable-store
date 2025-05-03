@@ -57,7 +57,9 @@ const store = createMutableStore({
 });
 ```
 
-You might have noticed that the get function has an underscore () prefix.
+notice that we are using `this` to access the state to access any of it's members or data. so always use a member function so that 'this' can be bound to the state object.
+
+You might have noticed that the get function has an underscore (\_) prefix.
 
 if a method's name start with "\_" then, that means it's a get function and will not trigger any subscriptions.
 
@@ -85,6 +87,19 @@ they can't mutate state directly, they have to always use setter functions.
 
 these rules are very important to trigger subscriptions correctly because we are not using any proxies or getters or setters to detect state changes.
 
+## Resetting the store
+
+There is no built in way to reset the store but you can create an object from the class and then later, when you want to reset, create a new object from the class and pass it to the `reset` method of the store.
+
+```typescript
+const store = createMutableStore({
+  count: 0,
+  increment() {
+    this.count++;
+  },
+});
+```
+
 ## API
 
 ### createMutableStore(state: any)
@@ -102,8 +117,6 @@ The mutable state object with a `subscribe` method for subscribing to changes.
 ### subscribe(fn: (sub: subType) => void)
 
 Subscribes to state changes.
-
-// example on how to subscribe and unsubscribe
 
 ```typescript
 const store = createMutableStore({

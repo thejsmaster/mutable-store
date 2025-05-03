@@ -16,13 +16,26 @@ type subType = {
   args: any[];
 };
 
-export const createMutableStore = <T>(
-  mutableState: T
-): T & {
-  subscribe: (fn: () => void) => () => void;
-} => {
+export default function createMutableStore<T>(mutableState: T): T & {
+  subscribe: (fn: (sub: subType) => void) => () => void;
+  reset: (newMutableState: T) => void;
+} {
   const props: (keyof T)[] = getAllProps(mutableState);
   const subscriptions = new Set<(sub: subType) => void>();
+  const reset = (newMutableState: T) => {
+    const props = getAllProps(newMutableState);
+    props.forEach((prop) => {
+      //@ts-ignore
+      if (typeof newMutableState[prop] !== "function") {
+        //@ts-ignore
+        mutableState[prop] = newMutableState[prop];
+      }
+    });
+    // Call subscribers once with "reset" and the new state object
+    subscriptions.forEach((fn) =>
+      fn({ setterName: "reset", args: [newMutableState] })
+    );
+  };
   const subscribe = (fn: (sub: subType) => void) => {
     subscriptions.add(fn);
     return () => {
@@ -50,7 +63,10 @@ export const createMutableStore = <T>(
   });
   //@ts-ignore
   mutableState.subscribe = subscribe;
+  //@ts-ignore
+  mutableState.reset = reset;
   return mutableState as T & {
     subscribe: (fn: (sub: subType) => void) => () => void;
+    reset: (newMutableState: T) => void;
   };
-};
+}
