@@ -1,0 +1,22 @@
+{
+  "name": "mutable-store",
+  "version": "1.2.0",
+  "description": "a mutable state management library for javascript",
+  "main": "index.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1",
+    "build": "tsc",
+    "dev": "tsc --watch"
+  },
+  "keywords": [
+    "mutable",
+    "js",
+    "state",
+    "management"
+  ],
+  "author": "Sean Freeman",
+  "license": "ISC",
+  "devDependencies": {
+    "typescript": "^5.8.3"
+  }
+}
