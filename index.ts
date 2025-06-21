@@ -45,20 +45,20 @@ export default function createMutableStore<T>(mutableState: T): T & {
   props.forEach((prop) => {
     if (
       typeof mutableState[prop] === "function" &&
-      !(
-        prop.toString().startsWith("_") || prop.toString().startsWith("action_")
-      )
+      prop.toString().startsWith("set_")
     ) {
-      const originalMethod = mutableState[prop];
-      //@ts-ignore
-      mutableState[prop] = function (...args: any[]) {
-        const result = originalMethod.apply(mutableState, args);
-        setTimeout(
-          () => subscriptions.forEach((fn) => fn({ setterName: prop, args })),
-          0
-        );
-        return result;
-      };
+      const _originalMethod = mutableState[prop];
+      if (typeof _originalMethod === "function") {
+        //@ts-ignore
+        mutableState[prop] = function setter(...args: any[]) {
+          const result = _originalMethod.apply(mutableState, args);
+          setTimeout(
+            () => subscriptions.forEach((fn) => fn({ setterName: prop, args })),
+            0
+          );
+          return result;
+        }.bind(mutableState);
+      }
     }
   });
   //@ts-ignore

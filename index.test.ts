@@ -5,7 +5,7 @@ describe("createMutableStore", () => {
   test("should create a store with subscribe method", () => {
     const initialState = {
       count: 0,
-      increment() {
+      set_increment() {
         this.count += 1;
       },
     };
@@ -13,7 +13,7 @@ describe("createMutableStore", () => {
     const store = createMutableStore(initialState);
 
     expect(store.count).toBe(0);
-    expect(typeof store.increment).toBe("function");
+    expect(typeof store.set_increment).toBe("function");
     expect(typeof store.subscribe).toBe("function");
   });
 
@@ -22,10 +22,10 @@ describe("createMutableStore", () => {
 
     const initialState = {
       count: 0,
-      increment() {
+      set_increment() {
         this.count += 1;
       },
-      add(n: number) {
+      set_add(n: number) {
         this.count += n;
       },
     };
@@ -34,7 +34,7 @@ describe("createMutableStore", () => {
     const mockSubscriber = jest.fn();
 
     store.subscribe(mockSubscriber);
-    store.increment();
+    store.set_increment();
 
     // Check that subscriber hasn't been called yet (due to setTimeout)
     expect(mockSubscriber).not.toHaveBeenCalled();
@@ -50,7 +50,7 @@ describe("createMutableStore", () => {
 
     // Reset mock and test another method
     mockSubscriber.mockReset();
-    store.add(5);
+    store.set_add(5);
     jest.runAllTimers();
 
     expect(mockSubscriber).toHaveBeenCalledWith({
@@ -171,7 +171,7 @@ describe("reset", () => {
 
     class Store {
       count = 0;
-      increment() {
+      set_increment() {
         this.count += 1;
       }
     }
@@ -179,7 +179,7 @@ describe("reset", () => {
     const store = createMutableStore(new Store());
     const mockReaction = jest.fn();
 
-    store.increment();
+    store.set_increment();
     expect(store.count).toBe(1);
     const s = new Store();
     jest.runAllTimers();
