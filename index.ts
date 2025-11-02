@@ -1,47 +1,57 @@
-export function getAllProps(instance: any): any[] {
-  const props: string[] = Object.keys(instance);
-  let currentPrototype = Object.getPrototypeOf(instance);
-  while (currentPrototype !== null && currentPrototype !== Object.prototype) {
-    props.push(...Object.getOwnPropertyNames(currentPrototype));
-    currentPrototype = Object.getPrototypeOf(currentPrototype);
+export function getAllProps(obj: Record<any, any>) {
+  const props = new Set();
+  const builtins = [
+    Object.prototype,
+    Array.prototype,
+    Function.prototype,
+    String.prototype,
+    Number.prototype,
+    Boolean.prototype,
+    Symbol.prototype,
+    Date.prototype,
+    RegExp.prototype,
+    Map.prototype,
+    Set.prototype,
+    WeakMap.prototype,
+    WeakSet.prototype,
+    Promise.prototype,
+    Error.prototype,
+  ];
+
+  while (obj && !builtins.includes(obj)) {
+    for (const key of Reflect.ownKeys(obj)) {
+      if (key !== "constructor") {
+        props.add(key);
+      }
+    }
+    obj = Object.getPrototypeOf(obj);
   }
-  const unique = [...(new Set(props)?.values?.() || [])].filter(
-    (item) => item !== "constructor"
-  );
-  return unique;
+
+  return Array.from(props);
 }
 
-type subType = {
-  setterName: string | number | symbol;
-  args: any[];
-};
-
-export default function createMutableStore<T>(mutableState: T): T & {
-  subscribe: (fn: (sub: subType) => void) => () => void;
-  reset: (newMutableState: T) => void;
+export default function createMutableStore<T extends Record<any, any>>(
+  mutableState: T
+): T & {
+  ___subscribe___: (fn: () => void) => () => void;
+  ___version___: number;
+  ___isStore___: boolean;
 } {
+  let version = 0;
   const props: (keyof T)[] = getAllProps(mutableState);
-  const subscriptions = new Set<(sub: subType) => void>();
-  const reset = (newMutableState: T) => {
-    const props = getAllProps(newMutableState);
-    props.forEach((prop) => {
-      //@ts-ignore
-      if (typeof newMutableState[prop] !== "function") {
-        //@ts-ignore
-        mutableState[prop] = newMutableState[prop];
-      }
-    });
-    // Call subscribers once with "reset" and the new state object
-    subscriptions.forEach((fn) =>
-      fn({ setterName: "reset", args: [newMutableState] })
-    );
-  };
-  const subscribe = (fn: (sub: subType) => void) => {
+  const subscriptions = new Set<() => void>();
+
+  const subscribe = (fn: () => void) => {
     subscriptions.add(fn);
     return () => {
       subscriptions.delete(fn);
     };
   };
+
+  const callSubs = () => {
+    setTimeout(() => subscriptions.forEach((fn) => fn()), 0);
+  };
+
   props.forEach((prop) => {
     if (
       typeof mutableState[prop] === "function" &&
@@ -50,23 +60,63 @@ export default function createMutableStore<T>(mutableState: T): T & {
       const _originalMethod = mutableState[prop];
       if (typeof _originalMethod === "function") {
         //@ts-ignore
-        mutableState[prop] = function setter(...args: any[]) {
+        mutableState[prop] = function(...args: any[]) {
           const result = _originalMethod.apply(mutableState, args);
-          setTimeout(
-            () => subscriptions.forEach((fn) => fn({ setterName: prop, args })),
-            0
-          );
+          version++;
+          callSubs();
           return result;
         }.bind(mutableState);
       }
     }
+    const originalDescriptor = Object.getOwnPropertyDescriptor(
+      mutableState,
+      prop
+    );
+    const originalGetter = originalDescriptor?.get;
+    const originalSetter = originalDescriptor?.set;
+
+    if (!!originalGetter || !!originalSetter) {
+      if (originalGetter) {
+        let cachedValue: any;
+        let cachedVersion: number | null = null;
+
+        Object.defineProperty(mutableState, prop, {
+          get: originalGetter
+            ? function () {
+                if (cachedVersion === version) {
+                  return cachedValue;
+                }
+                cachedValue = originalGetter.call(mutableState);
+                cachedVersion = version;
+                return cachedValue;
+              }
+            : undefined,
+          set: originalSetter
+            ? function (value: any) {
+                if (originalSetter) {
+                  originalSetter.call(mutableState, value);
+                }
+                // Invalidate cache on set
+                version++;
+                callSubs();
+              }
+            : undefined,
+          configurable: true,
+          enumerable: originalDescriptor?.enumerable ?? true,
+        });
+      }
+    }
   });
   //@ts-ignore
-  mutableState.subscribe = subscribe;
+  mutableState.___subscribe___ = subscribe;
   //@ts-ignore
-  mutableState.reset = reset;
+  mutableState.___version___ = version;
+  //@ts-ignore
+  mutableState.___isStore___ = true;
+  //@ts-ignore
   return mutableState as T & {
-    subscribe: (fn: (sub: subType) => void) => () => void;
-    reset: (newMutableState: T) => void;
+    ___subscribe___: (fn: () => void) => () => void;
+    ___version___: number;
+    ___isStore___: boolean;
   };
 }
